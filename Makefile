@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=c11 -Wall -Wextra
+CFLAGS=-std=c11 -Wall -Wextra -Werror
 LDFLAGS=-lm
 GL_LDFLAGS=-lGL -lglfw
 
@@ -7,7 +7,7 @@ GL_LDFLAGS=-lGL -lglfw
 TARGETS=tiny_ising demo
 
 # Rules
-all: $(TARGETS)
+all: clean $(TARGETS)
 
 tiny_ising: tiny_ising.o ising.o wtime.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
