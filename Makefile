@@ -9,10 +9,10 @@ TARGETS=tiny_ising demo
 # Rules
 all: clean $(TARGETS)
 
-tiny_ising: tiny_ising.o ising.o wtime.o
+tiny_ising: tiny_ising.o ising.o wtime.o randomizer.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-demo: demo.o ising.o wtime.o
+demo: demo.o ising.o wtime.o randomizer.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(GL_LDFLAGS)
 
 clean:

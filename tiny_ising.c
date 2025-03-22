@@ -12,6 +12,7 @@
 #include "ising.h"
 #include "params.h"
 #include "wtime.h"
+#include "randomizer.h"
 
 #include <assert.h>
 #include <limits.h> // UINT_MAX
@@ -25,6 +26,7 @@
 #define NPOINTS (1 + (int)((TEMP_FINAL - TEMP_INITIAL) / TEMP_DELTA))
 #define N (L * L) // system size
 #define SEED (time(NULL)) // random seed
+//#define SEED ((unsigned int)time(NULL) ^ 0x5DEECE66D) // Rand_personalizado
 
 // temperature, E, E^2, E^4, M, M^2, M^4
 struct statpoint {
@@ -127,6 +129,7 @@ int main(void)
 
     // configure RNG
     srand(SEED);
+    //init_randomizer(SEED); // Inicializar el randomizador personalizado
 
     // start timer
     double start = wtime();
