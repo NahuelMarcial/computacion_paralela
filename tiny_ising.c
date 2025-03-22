@@ -100,8 +100,10 @@ static void init(int grid[L][L])
 int main(void)
 {
     // parameter checking
+#if (defined(__GNUC__) && !defined(__clang__)) && !defined(__INTEL_COMPILER)
     static_assert(TEMP_DELTA != 0, "Invalid temperature step");
     static_assert(((TEMP_DELTA > 0) && (TEMP_INITIAL <= TEMP_FINAL)) || ((TEMP_DELTA < 0) && (TEMP_INITIAL >= TEMP_FINAL)), "Invalid temperature range+step");
+#endif // expression in static assertion should be an integer constant expression (but GCC doesn't complain)
     static_assert(TMAX % DELTA_T == 0, "Measurements must be equidistant"); // take equidistant calculate()
     static_assert((L * L / 2) * 4ULL < UINT_MAX, "L too large for uint indices"); // max energy, that is all spins are the same, fits into a ulong
 
