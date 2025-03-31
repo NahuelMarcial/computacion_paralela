@@ -49,12 +49,14 @@ void update(const float temp, int grid[L][L])
     }
 }
 
+// for (unsigned int j = i%2; j < L; j+=2) { // Con optimizacion
+//return -((double)E); // Con optimizacion
 
 double calculate(int grid[L][L], int* M_max)
 {
     int E = 0;
     for (unsigned int i = 0; i < L; ++i) {
-        // for (unsigned int j = i%2; j < L; j+=2) { // Con optimizacion
+        
         for (unsigned int j = 0; j < L; ++j) {
             int spin = grid[i][j];
             int spin_neigh_n = grid[(i + 1) % L][j];
@@ -67,5 +69,5 @@ double calculate(int grid[L][L], int* M_max)
         }
     }
     return -((double)E / 2.0);
-    //return -((double)E); // Con optimizacion
+    
 }
