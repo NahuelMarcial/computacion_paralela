@@ -3,23 +3,27 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <assert.h>
 
+#define EXPF_LOOKUP_TABLE_SIZE (16)
 static struct {
     float temp;
-    float table[5]; // EXPF_LOOKUP_TABLE_SIZE = 5 (for half_delta_E from 0 to 4)
+    float table[EXPF_LOOKUP_TABLE_SIZE];
 } expf_lookup = {0.0, {0.0}};
 
 static void init_expf_lookup_table(const float temp)
 {
     expf_lookup.temp = temp;
-    for (int half_delta_E = 1; half_delta_E <= 4; ++half_delta_E) {
-        expf_lookup.table[half_delta_E] = expf(-(half_delta_E * 2) / temp);
+    for (int delta_E = 1; delta_E <= 8; ++delta_E) {
+        expf_lookup.table[delta_E] = expf(-delta_E / temp);
     }
 }
 
 void update(const float temp, int grid[L][L])
 {
     // typewriter update
+    if (expf_lookup.temp != temp) init_expf_lookup_table(temp);
+
     for (unsigned int i = 0; i < L; ++i) {
         for (unsigned int j = 0; j < L; ++j) {
             int spin_old = grid[i][j];
@@ -33,8 +37,11 @@ void update(const float temp, int grid[L][L])
             int delta_E = 2 * spin_old * (spin_neigh_n + spin_neigh_e + spin_neigh_w + spin_neigh_s);
             float p = generate_random();
 
-            if (delta_E <= 0 || p <= expf_lookup.table[half_delta_E]) {
-                write[idx(x,y)] = spin_new;
+            assert(expf_lookup.temp == temp);
+            assert(delta_E <= 0 || fabsf(expf(-delta_E / temp) - expf_lookup.table[delta_E]) < 0.0001);
+
+            if (delta_E <= 0 || p <= expf_lookup.table[delta_E]) {
+                grid[i][j] = spin_new;
             }
         }
     }
