@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
+
 #define EXPF_LOOKUP_TABLE_SIZE (16)
 static struct {
     float temp;
