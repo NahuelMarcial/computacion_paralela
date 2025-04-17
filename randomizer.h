@@ -1,7 +1,7 @@
-#ifndef RANDOMIZER_H
-#define RANDOMIZER_H
+#include<inttypes.h>
 
-void init_randomizer(unsigned int seed);
-float generate_random();
+#define RAND_MAX_ALT 0xFFFFFFFF
+void srand_alt(uint64_t s);
 
-#endif // RANDOMIZER_H
+uint32_t rand_alt(void);
+uint64_t rand_alt_64(void);

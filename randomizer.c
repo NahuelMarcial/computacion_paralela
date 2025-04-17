@@ -1,13 +1,23 @@
+#include<inttypes.h>
 #include "randomizer.h"
+static uint64_t semilla;
 
-static unsigned int current_seed;
-
-void init_randomizer(unsigned int seed) {
-    current_seed = seed;
+// Implementación de un LCG
+void srand_alt(uint64_t s)
+{
+	semilla = s - 1;
 }
 
-float generate_random() {
-    // Generador Congruencial Lineal (LCG)
-    current_seed = (1664525 * current_seed + 1013904223) % 0xFFFFFFFF;
-    return current_seed / (float)0xFFFFFFFF;
+uint32_t rand_alt(void)
+{
+	semilla = UINT64_C(6364136223846793005) * semilla
+	    + UINT64_C(1442695040888963407);
+	return semilla >> 32;
+}
+
+uint64_t rand_alt_64(void)
+{
+	semilla = UINT64_C(6364136223846793005) * semilla
+	    + UINT64_C(1442695040888963407);
+	return semilla;
 }

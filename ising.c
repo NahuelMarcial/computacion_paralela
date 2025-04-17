@@ -1,12 +1,17 @@
 #include "ising.h"
-#include "randomizer.h"
 
 #include <math.h>
 #include <stdlib.h>
 #include <assert.h>
-
+#include "randomizer.h"
 
 #define EXPF_LOOKUP_TABLE_SIZE (16)
+typedef enum { RED, BLACK } grid_color;
+
+size_t
+idx(size_t x, size_t y) {
+	return y * WIDTH + x;
+}
 static struct {
     float temp;
     float table[EXPF_LOOKUP_TABLE_SIZE];
@@ -20,50 +25,95 @@ static void init_expf_lookup_table(const float temp)
     }
 }
 
-void update(const float temp, int grid[L][L])
-{
-    // typewriter update
-    if (expf_lookup.temp != temp) init_expf_lookup_table(temp);
 
-    for (unsigned int i = 0; i < L; ++i) {
-        for (unsigned int j = 0; j < L; ++j) {
-            int spin_old = grid[i][j];
-            int spin_new = (-1) * spin_old;
+static
+void
+update_rb(grid_color color,
+          const int * restrict read,
+          int * restrict write) {
 
-            int spin_neigh_n = grid[(i + L - 1) % L][j];
-            int spin_neigh_e = grid[i][(j + 1) % L];
-            int spin_neigh_w = grid[i][(j + L - 1) % L];
-            int spin_neigh_s = grid[(i + 1) % L][j];
+	int side_shift = color == RED ? -1 : 1;
 
-            int delta_E = 2 * spin_old * (spin_neigh_n + spin_neigh_e + spin_neigh_w + spin_neigh_s);
-            float p = generate_random();
+    uint64_t _rands[(WIDTH+3)/4] = {0};
+    uint16_t *rands = (uint16_t *)_rands;
 
-            assert(expf_lookup.temp == temp);
-            assert(delta_E <= 0 || fabsf(expf(-delta_E / temp) - expf_lookup.table[delta_E]) < 0.0001);
-
-            if (delta_E <= 0 || p <= expf_lookup.table[delta_E]) {
-                grid[i][j] = spin_new;
-            }
+	for (int y = 0; y < HEIGHT; ++y, side_shift = -side_shift) {
+        for (int z = 0; z < (WIDTH+3)/4; z++) {
+            _rands[z] = rand_alt_64();
         }
-    }
+        #pragma omp simd
+		for (int x = 0; x < WIDTH; ++x) {
+			int spin_old = write[idx(x, y)];
+			int spin_new = -spin_old;
+
+			// computing h_before
+			int spin_neigh_up   = read[idx(x, (y - 1 + HEIGHT) % HEIGHT)];
+			int spin_neigh_same = read[idx(x, y)];
+			int spin_neigh_side = read[idx((x + side_shift + WIDTH) % WIDTH, y)];
+			int spin_neigh_down = read[idx(x, (y + 1) % HEIGHT)];
+
+			int delta_E = 2 * spin_old * (spin_neigh_up + spin_neigh_same + spin_neigh_side + spin_neigh_down);
+
+			float p = (rands[x]) / (float) 0xFFFF;
+			// if (delta_E<=0 || p<=expf_lookup.table[delta_E]) {
+			// 	write[idx(x, y)] = spin_new;
+			// }
+            // int update = (delta_E<=0 || p<=expf_lookup.table[delta_E]) &&( spin_new ^ spin_old);
+            // write[idx(x, y)] ^= update;
+            // int update = (!!(delta_E<=0 || p<=expf_lookup.table[delta_E]))*2 -1;
+            // write[idx(x, y)] *= update;
+
+			int pred = (delta_E<=0 || p<=expf_lookup.table[delta_E]);
+			write[idx(x, y)] = pred * spin_new + !pred * spin_old;
+
+
+		}
+	}
 }
 
-double calculate(int grid[L][L], int* M_max)
-{
-    int E = 0;
-    for (unsigned int i = 0; i < L; ++i) {
-        
-        for (unsigned int j = i%2; j < L; j+=2) {
-            int spin = grid[i][j];
-            int spin_neigh_n = grid[(i + 1) % L][j];
-            int spin_neigh_e = grid[i][(j + 1) % L];
-            int spin_neigh_w = grid[i][(j + L - 1) % L];
-            int spin_neigh_s = grid[(i + L - 1) % L][j];
+void
+update(const float temp,
+       int * restrict grid_r,
+       int * restrict grid_b) {
+    if (expf_lookup.temp != temp) init_expf_lookup_table(temp);
+	update_rb(RED, grid_b, grid_r);
+	update_rb(BLACK, grid_r, grid_b);
+}
 
-            E += (spin * spin_neigh_n) + (spin * spin_neigh_e) + (spin * spin_neigh_w) + (spin * spin_neigh_s);
-            *M_max += spin;
-        }
-    }
-    return -((double)E);
-    
+static
+int
+calculate_rb(grid_color color,
+             const int * restrict neigh,
+             const int * restrict grid,
+             int * restrict M_max) {
+
+	int E = 0;
+	int side_shift = color == RED ? -1 : 1;
+
+	for (int y = 0; y < HEIGHT; ++y, side_shift = -side_shift) {
+        #pragma omp simd
+		for (int x = 0; x < WIDTH; ++x) {
+			int spin = grid[idx(x, y)];
+			int spin_neigh_up   = neigh[idx(x, (y - 1 + HEIGHT) % HEIGHT)];
+			int spin_neigh_same = neigh[idx(x, y)];
+			int spin_neigh_side = neigh[idx((x + side_shift + WIDTH) % WIDTH, y)];
+			int spin_neigh_down = neigh[idx(x, (y + 1) % HEIGHT)];
+
+			E += (spin * spin_neigh_up)   + (spin * spin_neigh_same) +
+			     (spin * spin_neigh_side) + (spin * spin_neigh_down);
+			*M_max += spin;
+		}
+	}
+
+	return E;
+}
+
+double
+calculate(const int * restrict grid_r,
+          const int * restrict grid_b,
+          int * restrict M_max) {
+	int E = 0;
+	E += calculate_rb(RED, grid_b, grid_r, M_max);
+	E += calculate_rb(BLACK, grid_r, grid_b, M_max);
+	return - (double) E / 2.0;
 }
