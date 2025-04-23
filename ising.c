@@ -36,15 +36,15 @@ update_rb(grid_color color,
           const elem * restrict read,
           elem * restrict write) {
 
-	int side_shift = color == RED ? -1 : 1;
+	uint64_t _rands[(WIDTH+3)/4] = {0};
+	uint16_t *rands = (uint16_t *)_rands;
 
-	static_assert(WIDTH % 16 == 0, "WIDTH must be a multiple of 16");
-	union rand_num rands = {0};
+	int side_shift = color == RED ? -1 : 1;
 
 	for (int y = 0; y < HEIGHT; ++y, side_shift = -side_shift) {
         #pragma omp simd
-        for (int z = 0; z < WIDTH/4; z+=4) {
-        	rand_alt_64x4(&rands.u64[z]);
+        for (int z = 0; z < (WIDTH+3)/4; z++) {
+            _rands[z] = rand_alt_64();
         }
         #pragma omp simd
 		for (int x = 0; x < WIDTH; ++x) {
@@ -59,7 +59,7 @@ update_rb(grid_color color,
 
 			elem half_delta_E = spin_old * (spin_neigh_up + spin_neigh_same + spin_neigh_side + spin_neigh_down);
 
-			float p = (rands.u16[x]);
+			float p = (rands[x]);
 			// if (half_delta_E<=0 || p<=expf_lookup.table[half_delta_E]) {
 			// 	write[idx(x, y)] = spin_new;
 			// }

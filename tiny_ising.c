@@ -136,7 +136,7 @@ int main(void)
     printf("# Number of Points: %i\n", NPOINTS);
 
     // configure RNG
-    srand_alt((uint64_t)SEED * 0xFFFFFFFFFF);
+    srand_alt(SEED);
 
     // start timer
     double start = wtime();
