@@ -26,8 +26,7 @@
 // out vector size, it is +1 since we reach TEMP_
 #define NPOINTS (1 + (int)((TEMP_FINAL - TEMP_INITIAL) / TEMP_DELTA))
 #define N (L * L) // system size
-//#define SEED (time(NULL)) // random seed
-
+#define SEED (time(NULL)) // random seed
 
 // temperature, E, E^2, E^4, M, M^2, M^4
 struct statpoint {
@@ -41,8 +40,8 @@ struct statpoint {
 };
 
 
-static void cycle(int * restrict grid_r,
-                  int * restrict grid_b,
+static void cycle(elem * restrict grid_r,
+                  elem * restrict grid_b,
                   const double min, const double max,
                   const double step, const unsigned int calc_step,
                   struct statpoint stats[])
@@ -92,8 +91,8 @@ static void cycle(int * restrict grid_r,
 
 
 static void init(
-       int * restrict grid_r,
-       int * restrict grid_b)
+       elem * restrict grid_r,
+       elem * restrict grid_b)
 {
     for (unsigned int y = 0; y < HEIGHT; ++y) {
         for (unsigned int x = 0; x < WIDTH; ++x) {
@@ -114,9 +113,9 @@ int main(void)
     static_assert(TMAX % DELTA_T == 0, "Measurements must be equidistant"); // take equidistant calculate()
     static_assert((L * L / 2) * 4ULL < UINT_MAX, "L too large for uint indices"); // max energy, that is all spins are the same, fits into a ulong
 
-    size_t size = HEIGHT * WIDTH * sizeof(int);
-    int * grid_r = malloc(size);
-    int * grid_b = malloc(size);
+    size_t size = HEIGHT * WIDTH * sizeof(elem);
+    elem * grid_r = malloc(size);
+    elem * grid_b = malloc(size);
 
     // the stats
     struct statpoint stat[NPOINTS];
@@ -137,7 +136,7 @@ int main(void)
     printf("# Number of Points: %i\n", NPOINTS);
 
     // configure RNG
-    //srand_alt(SEED);
+    srand_alt((uint64_t)SEED * 0xFFFFFFFFFF);
 
     // start timer
     double start = wtime();

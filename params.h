@@ -28,5 +28,9 @@
 #define DELTA_T 5 // sampling period for energy and magnetization
 #endif
 
+#ifndef DATATYPE
+#define DATATYPE int
+#endif
+
 #define WIDTH (L/2)
 #define HEIGHT (L)

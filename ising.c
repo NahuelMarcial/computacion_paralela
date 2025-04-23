@@ -20,51 +20,53 @@ static struct {
 static void init_expf_lookup_table(const float temp)
 {
     expf_lookup.temp = temp;
-    for (int delta_E = 1; delta_E <= 8; ++delta_E) {
-        expf_lookup.table[delta_E] = expf(-delta_E / temp);
+    for (int half_delta_E = 1; half_delta_E <= 4; ++half_delta_E) {
+        expf_lookup.table[half_delta_E] = expf(-(half_delta_E*2) / temp) * (float)0xFFFF;
     }
 }
 
+union rand_num {
+	uint64_t u64[WIDTH/4];
+	uint16_t u16[WIDTH];
+};
 
 static
 void
 update_rb(grid_color color,
-          const int * restrict read,
-          int * restrict write) {
+          const elem * restrict read,
+          elem * restrict write) {
 
 	int side_shift = color == RED ? -1 : 1;
 
-    uint64_t _rands[(WIDTH+3)/4] = {0};
-    uint16_t *rands = (uint16_t *)_rands;
+	static_assert(WIDTH % 16 == 0, "WIDTH must be a multiple of 16");
+	union rand_num rands = {0};
 
 	for (int y = 0; y < HEIGHT; ++y, side_shift = -side_shift) {
-        for (int z = 0; z < (WIDTH+3)/4; z++) {
-            _rands[z] = rand_alt_64();
+        #pragma omp simd
+        for (int z = 0; z < WIDTH/4; z+=4) {
+        	rand_alt_64x4(&rands.u64[z]);
         }
         #pragma omp simd
 		for (int x = 0; x < WIDTH; ++x) {
-			int spin_old = write[idx(x, y)];
-			int spin_new = -spin_old;
+			elem spin_old = write[idx(x, y)];
+			//elem spin_new = -spin_old;
 
 			// computing h_before
-			int spin_neigh_up   = read[idx(x, (y - 1 + HEIGHT) % HEIGHT)];
-			int spin_neigh_same = read[idx(x, y)];
-			int spin_neigh_side = read[idx((x + side_shift + WIDTH) % WIDTH, y)];
-			int spin_neigh_down = read[idx(x, (y + 1) % HEIGHT)];
+			elem spin_neigh_up   = read[idx(x, (y - 1 + HEIGHT) % HEIGHT)];
+			elem spin_neigh_same = read[idx(x, y)];
+			elem spin_neigh_side = read[idx((x + side_shift + WIDTH) % WIDTH, y)];
+			elem spin_neigh_down = read[idx(x, (y + 1) % HEIGHT)];
 
-			int delta_E = 2 * spin_old * (spin_neigh_up + spin_neigh_same + spin_neigh_side + spin_neigh_down);
+			elem half_delta_E = spin_old * (spin_neigh_up + spin_neigh_same + spin_neigh_side + spin_neigh_down);
 
-			float p = (rands[x]) / (float) 0xFFFF;
-			// if (delta_E<=0 || p<=expf_lookup.table[delta_E]) {
+			float p = (rands.u16[x]);
+			// if (half_delta_E<=0 || p<=expf_lookup.table[half_delta_E]) {
 			// 	write[idx(x, y)] = spin_new;
 			// }
-            // int update = (delta_E<=0 || p<=expf_lookup.table[delta_E]) &&( spin_new ^ spin_old);
-            // write[idx(x, y)] ^= update;
-            // int update = (!!(delta_E<=0 || p<=expf_lookup.table[delta_E]))*2 -1;
-            // write[idx(x, y)] *= update;
-
-			int pred = (delta_E<=0 || p<=expf_lookup.table[delta_E]);
-			write[idx(x, y)] = pred * spin_new + !pred * spin_old;
+            elem update = ((half_delta_E<=0 || p<=expf_lookup.table[half_delta_E]))*-2 +1;
+            write[idx(x, y)] *= update;
+			// int pred = (half_delta_E<=0 || p<=expf_lookup.table[half_delta_E]);
+			// write[idx(x, y)] = pred * spin_new + !pred * spin_old;
 
 
 		}
@@ -73,8 +75,8 @@ update_rb(grid_color color,
 
 void
 update(const float temp,
-       int * restrict grid_r,
-       int * restrict grid_b) {
+       elem * restrict grid_r,
+       elem * restrict grid_b) {
     if (expf_lookup.temp != temp) init_expf_lookup_table(temp);
 	update_rb(RED, grid_b, grid_r);
 	update_rb(BLACK, grid_r, grid_b);
@@ -83,8 +85,8 @@ update(const float temp,
 static
 int
 calculate_rb(grid_color color,
-             const int * restrict neigh,
-             const int * restrict grid,
+             const elem * restrict neigh,
+             const elem * restrict grid,
              int * restrict M_max) {
 
 	int E = 0;
@@ -93,15 +95,15 @@ calculate_rb(grid_color color,
 	for (int y = 0; y < HEIGHT; ++y, side_shift = -side_shift) {
         #pragma omp simd
 		for (int x = 0; x < WIDTH; ++x) {
-			int spin = grid[idx(x, y)];
-			int spin_neigh_up   = neigh[idx(x, (y - 1 + HEIGHT) % HEIGHT)];
-			int spin_neigh_same = neigh[idx(x, y)];
-			int spin_neigh_side = neigh[idx((x + side_shift + WIDTH) % WIDTH, y)];
-			int spin_neigh_down = neigh[idx(x, (y + 1) % HEIGHT)];
+			elem spin = grid[idx(x, y)];
+			elem spin_neigh_up   = neigh[idx(x, (y - 1 + HEIGHT) % HEIGHT)];
+			elem spin_neigh_same = neigh[idx(x, y)];
+			elem spin_neigh_side = neigh[idx((x + side_shift + WIDTH) % WIDTH, y)];
+			elem spin_neigh_down = neigh[idx(x, (y + 1) % HEIGHT)];
 
-			E += (spin * spin_neigh_up)   + (spin * spin_neigh_same) +
-			     (spin * spin_neigh_side) + (spin * spin_neigh_down);
-			*M_max += spin;
+			E += spin * (spin_neigh_up + spin_neigh_same +
+			     spin_neigh_side + spin_neigh_down);
+			*M_max += spin + spin_neigh_same;
 		}
 	}
 
@@ -109,11 +111,10 @@ calculate_rb(grid_color color,
 }
 
 double
-calculate(const int * restrict grid_r,
-          const int * restrict grid_b,
+calculate(const elem * restrict grid_r,
+          const elem * restrict grid_b,
           int * restrict M_max) {
 	int E = 0;
 	E += calculate_rb(RED, grid_b, grid_r, M_max);
-	E += calculate_rb(BLACK, grid_r, grid_b, M_max);
-	return - (double) E / 2.0;
+	return - (double) E;
 }

@@ -31,7 +31,7 @@
 /**
  * GL output
  */
-static void draw(gl2d_t gl2d, float t_now, float t_min, float t_max, int * restrict grid_r,  int * restrict grid_b)
+static void draw(gl2d_t gl2d, float t_now, float t_min, float t_max, elem * restrict grid_r,  elem * restrict grid_b)
 {
     static double last_frame = 0.0;
 
@@ -46,7 +46,7 @@ static void draw(gl2d_t gl2d, float t_now, float t_min, float t_max, int * restr
     colormap_rgbf(COLORMAP_VIRIDIS, t_now, t_min, t_max, &color[0], &color[1], &color[2]);
     for (unsigned int y = 0; y < HEIGHT; ++y) {
         memset(row, 0, sizeof(row));
-        int * grid_left = ((y&1)?grid_r:grid_b), * grid_right = ((y&1)?grid_b:grid_r);
+        elem * grid_left = ((y&1)?grid_r:grid_b), * grid_right = ((y&1)?grid_b:grid_r);
         for (unsigned int x = 0; x < WIDTH; ++x) {
             if ( grid_left[idx(x, y)] > 0) {
                 row[x*2 * 3] = color[0];
@@ -65,7 +65,7 @@ static void draw(gl2d_t gl2d, float t_now, float t_min, float t_max, int * restr
 }
 
 
-static void cycle(gl2d_t gl2d, const double initial, const double final, const double step, int * restrict grid_r,  int * restrict grid_b)
+static void cycle(gl2d_t gl2d, const double initial, const double final, const double step, elem * restrict grid_r,  elem * restrict grid_b)
 {
     assert((0 < step && initial <= final) || (step < 0 && final <= initial));
     int modifier = (0 < step) ? 1 : -1;
@@ -81,8 +81,8 @@ static void cycle(gl2d_t gl2d, const double initial, const double final, const d
 
 
 static void init(
-       int * restrict grid_r,
-       int * restrict grid_b)
+       elem * restrict grid_r,
+       elem * restrict grid_b)
 {
     for (unsigned int y = 0; y < HEIGHT; ++y) {
         for (unsigned int x = 0; x < WIDTH; ++x) {
@@ -120,9 +120,9 @@ int main(void)
     double start = wtime();
 
     // clear the grid_r, grid_b
-    size_t size = HEIGHT * WIDTH * sizeof(int);
-    int * grid_r = malloc(size);
-    int * grid_b = malloc(size);
+    size_t size = HEIGHT * WIDTH * sizeof(elem);
+    elem * grid_r = malloc(size);
+    elem * grid_b = malloc(size);
     init(grid_r, grid_b);
 
     // temperature increasing cycle
