@@ -15,7 +15,7 @@ run() {
     make clean > /dev/null
 
     # Compilar con los flags dados
-    make CC="$COMPILER" CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS_EXTRA -lm" tiny_ising > /dev/null 2>&1
+    make CC="$COMPILER" CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS_EXTRA -lm -fopenmp" tiny_ising > /dev/null 2>&1
 
     if [[ ! -f $EXECUTABLE ]]; then
         echo "ERROR: Falló la compilación con $COMPILER $CFLAGS"
@@ -76,8 +76,6 @@ echo "Métrica;Comentario"
 #run clang-15 "-Ofast -march=native" "" "clang-15 -Ofast -march=native"; echo "$OUTPUT"
 #run clang-15 "-flto" "-flto" "clang-15 -flto"; echo "$OUTPUT"
 #run clang-15 "-funroll-loops" "" "clang-15 -funroll-loops"; echo "$OUTPUT"
-
-
 
 run icx "-O0" "" "AOCC -O0"; echo "$OUTPUT"
 run icx "-O1" "" "AOCC -O1"; echo "$OUTPUT"
