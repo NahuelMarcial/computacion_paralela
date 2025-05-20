@@ -21,6 +21,7 @@
 #include <stdlib.h> // rand()
 #include <string.h>
 #include <time.h> // time()
+#include "randomizer.h"
 
 #define MAXFPS 60
 #define N (L * L) // system size
@@ -30,7 +31,7 @@
 /**
  * GL output
  */
-static void draw(gl2d_t gl2d, float t_now, float t_min, float t_max, int grid[L][L])
+static void draw(gl2d_t gl2d, float t_now, float t_min, float t_max, elem * restrict grid_r,  elem * restrict grid_b)
 {
     static double last_frame = 0.0;
 
@@ -41,24 +42,30 @@ static void draw(gl2d_t gl2d, float t_now, float t_min, float t_max, int grid[L]
     last_frame = current_time;
 
     float row[L * 3];
-    float color[3];
+    float color[3] = {0.5};
     colormap_rgbf(COLORMAP_VIRIDIS, t_now, t_min, t_max, &color[0], &color[1], &color[2]);
-    for (int i = 0; i < L; ++i) {
+    for (unsigned int y = 0; y < HEIGHT; ++y) {
         memset(row, 0, sizeof(row));
-        for (int j = 0; j < L; ++j) {
-            if (grid[i][j] > 0) {
-                row[j * 3] = color[0];
-                row[j * 3 + 1] = color[1];
-                row[j * 3 + 2] = color[2];
+        elem * grid_left = ((y&1)?grid_r:grid_b), * grid_right = ((y&1)?grid_b:grid_r);
+        for (unsigned int x = 0; x < WIDTH; ++x) {
+            if ( grid_left[idx(x, y)] > 0) {
+                row[x*2 * 3] = color[0];
+                row[x*2 * 3 + 1] = color[1];
+                row[x*2 * 3 + 2] = color[2];
+            }
+            if ( grid_right[idx(x, y)] > 0) {
+                row[(x*2+1) * 3] = color[0];
+                row[(x*2+1) * 3 + 1] = color[1];
+                row[(x*2+1) * 3 + 2] = color[2];
             }
         }
-        gl2d_draw_rgbf(gl2d, 0, i, L, 1, row);
+        gl2d_draw_rgbf(gl2d, 0, y, L, 1, row);
     }
     gl2d_display(gl2d);
 }
 
 
-static void cycle(gl2d_t gl2d, const double initial, const double final, const double step, int grid[L][L])
+static void cycle(gl2d_t gl2d, const double initial, const double final, const double step, elem * restrict grid_r,  elem * restrict grid_b)
 {
     assert((0 < step && initial <= final) || (step < 0 && final <= initial));
     int modifier = (0 < step) ? 1 : -1;
@@ -66,20 +73,23 @@ static void cycle(gl2d_t gl2d, const double initial, const double final, const d
     for (double temp = initial; modifier * temp <= modifier * final; temp += step) {
         printf("Temp: %f\n", temp);
         for (unsigned int j = 0; j < TRAN + TMAX; ++j) {
-            update(temp, grid);
-            draw(gl2d, temp, initial < final ? initial : final, initial < final ? final : initial, grid);
+            update(temp, grid_r, grid_b);
+            draw(gl2d, temp, initial < final ? initial : final, initial < final ? final : initial, grid_r, grid_b);
         }
     }
 }
 
 
-static void init(int grid[L][L])
+static void init(
+       elem * restrict grid_r,
+       elem * restrict grid_b)
 {
-    for (unsigned int i = 0; i < L; ++i) {
-        for (unsigned int j = 0; j < L; ++j) {
-            grid[i][j] = (rand() / (float)RAND_MAX) < 0.5f ? -1 : 1;
-        }
-    }
+    for (unsigned int y = 0; y < HEIGHT; ++y) {
+		for (unsigned int x = 0; x < WIDTH; ++x) {
+			grid_r[idx(x, y)] = (rand_alt() / (float)RAND_MAX_ALT) < 0.5f ? -1 : 1;
+			grid_b[idx(x, y)] = (rand_alt() / (float)RAND_MAX_ALT) < 0.5f ? -1 : 1;
+		}
+	}
 }
 
 
@@ -102,19 +112,21 @@ int main(void)
     printf("# Measurement Time: %i\n", TMAX);
 
     // configure RNG
-    srand(SEED);
+    srand_alt(SEED);
 
     gl2d_t gl2d = gl2d_init("tiny_ising", L, L);
 
     // start timer
     double start = wtime();
 
-    // clear the grid
-	int grid[L][L] = { { 0 } };
-    init(grid);
+    // clear the grid_r, grid_b
+	size_t size = HEIGHT * WIDTH * sizeof(elem);
+	elem * grid_r = malloc(size);
+	elem * grid_b = malloc(size);
+    init(grid_r, grid_b);
 
     // temperature increasing cycle
-    cycle(gl2d, TEMP_INITIAL, TEMP_FINAL, TEMP_DELTA, grid);
+    cycle(gl2d, TEMP_INITIAL, TEMP_FINAL, TEMP_DELTA, grid_r, grid_b);
 
     // stop timer
     double elapsed = wtime() - start;

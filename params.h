@@ -27,3 +27,22 @@
 #ifndef DELTA_T
 #define DELTA_T 5 // sampling period for energy and magnetization
 #endif
+
+#ifndef DATATYPE
+#define DATATYPE int
+#endif
+
+#ifndef MAX_THREADS
+#define MAX_THREADS 1
+#endif
+
+#ifndef PADDING
+#define PADDING 1
+#endif
+
+#ifndef SCHEDULE_TYPE
+#define SCHEDULE_TYPE static
+#endif
+
+#define WIDTH (L/2)
+#define HEIGHT (L)

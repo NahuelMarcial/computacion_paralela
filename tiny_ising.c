@@ -12,7 +12,6 @@
 #include "ising.h"
 #include "params.h"
 #include "wtime.h"
-#include "randomizer.h"
 
 #include <assert.h>
 #include <limits.h> // UINT_MAX
@@ -21,12 +20,13 @@
 #include <stdlib.h> // rand()
 #include <time.h> // time()
 
+#include "randomizer.h"
+
 // Internal definitions and functions
 // out vector size, it is +1 since we reach TEMP_
 #define NPOINTS (1 + (int)((TEMP_FINAL - TEMP_INITIAL) / TEMP_DELTA))
 #define N (L * L) // system size
 #define SEED (time(NULL)) // random seed
-//#define SEED ((unsigned int)time(NULL) ^ 0x5DEECE66D) // Rand_personalizado
 
 // temperature, E, E^2, E^4, M, M^2, M^4
 struct statpoint {
@@ -40,7 +40,8 @@ struct statpoint {
 };
 
 
-static void cycle(int grid[L][L],
+static void cycle(elem * restrict grid_r,
+                  elem * restrict grid_b,
                   const double min, const double max,
                   const double step, const unsigned int calc_step,
                   struct statpoint stats[])
@@ -54,18 +55,18 @@ static void cycle(int grid[L][L],
 
         // equilibrium phase
         for (unsigned int j = 0; j < TRAN; ++j) {
-            update(temp, grid);
+            update(temp, grid_r, grid_b);
         }
 
         // measurement phase
         unsigned int measurements = 0;
         double e = 0.0, e2 = 0.0, e4 = 0.0, m = 0.0, m2 = 0.0, m4 = 0.0;
         for (unsigned int j = 0; j < TMAX; ++j) {
-            update(temp, grid);
+            update(temp, grid_r, grid_b);
             if (j % calc_step == 0) {
                 double energy = 0.0, mag = 0.0;
                 int M_max = 0;
-                energy = calculate(grid, &M_max);
+                energy = calculate(grid_r, grid_b, &M_max);
                 mag = abs(M_max) / (float)N;
                 e += energy;
                 e2 += energy * energy;
@@ -89,13 +90,16 @@ static void cycle(int grid[L][L],
 }
 
 
-static void init(int grid[L][L])
+static void init(
+       elem * restrict grid_r,
+       elem * restrict grid_b)
 {
-    for (unsigned int i = 0; i < L; ++i) {
-        for (unsigned int j = 0; j < L; ++j) {
-            grid[i][j] = 1;
-        }
-    }
+    for (unsigned int y = 0; y < HEIGHT; ++y) {
+		for (unsigned int x = 0; x < WIDTH; ++x) {
+			grid_r[idx(x, y)] = 1;
+			grid_b[idx(x, y)] = 1;
+		}
+	}
 }
 
 
@@ -108,6 +112,10 @@ int main(void)
 #endif // expression in static assertion should be an integer constant expression (but GCC doesn't complain)
     static_assert(TMAX % DELTA_T == 0, "Measurements must be equidistant"); // take equidistant calculate()
     static_assert((L * L / 2) * 4ULL < UINT_MAX, "L too large for uint indices"); // max energy, that is all spins are the same, fits into a ulong
+
+    size_t size = HEIGHT * WIDTH * sizeof(elem);
+	elem * grid_r = malloc(size);
+	elem * grid_b = malloc(size);
 
     // the stats
     struct statpoint stat[NPOINTS];
@@ -128,18 +136,16 @@ int main(void)
     printf("# Number of Points: %i\n", NPOINTS);
 
     // configure RNG
-    srand(SEED);
-    //init_randomizer(SEED); // Inicializar el randomizador personalizado
+    srand_alt((uint64_t)SEED * 0xFFFFFFFFFF);
 
     // start timer
     double start = wtime();
 
     // clear the grid
-    int grid[L][L] = { { 0 } };
-    init(grid);
+    init(grid_r, grid_b);
 
     // temperature increasing cycle
-    cycle(grid, TEMP_INITIAL, TEMP_FINAL, TEMP_DELTA, DELTA_T, stat);
+    cycle(grid_r, grid_b, TEMP_INITIAL, TEMP_FINAL, TEMP_DELTA, DELTA_T, stat);
 
     // stop timer
     double elapsed = wtime() - start;
@@ -156,6 +162,7 @@ int main(void)
                stat[i].m2,
                stat[i].m4);
     }
-
+	free(grid_r);
+	free(grid_b);
     return 0;
 }

@@ -1,13 +1,34 @@
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "randomizer.h"
 
-static unsigned int current_seed;
+static uint64_t semilla;
+union rand_num rand_state[MAX_THREADS];
 
-void init_randomizer(unsigned int seed) {
-    current_seed = seed;
+void srand_alt(uint64_t s)
+{
+	semilla = s-1;
+	srand(semilla);
+	for (int y=0; y<MAX_THREADS; y++)
+		for (int x = 0; x < 4; x++){
+			rand_state[y].u64[x] = rand();
+		}
 }
 
-float generate_random() {
-    // Generador Congruencial Lineal (LCG)
-    current_seed = (1664525 * current_seed + 1013904223) % 0xFFFFFFFF;
-    return current_seed / (float)0xFFFFFFFF;
+uint32_t rand_alt(void)
+{
+	semilla = UINT64_C(6364136223846793005) * semilla
+	    + UINT64_C(1442695040888963407);
+	return semilla >> 32;
+}
+
+void rand_alt_64x4(int tid)
+{
+	#pragma omp simd
+	for(int i =0; i <4; i++)
+	{
+		rand_state[tid].u64[i] = UINT64_C(6364136223846793005) * rand_state[tid].u64[i]
+	    + UINT64_C(1442695040888963407);
+	}
 }

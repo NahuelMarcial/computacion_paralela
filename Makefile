@@ -1,6 +1,6 @@
-CC=gcc
-CFLAGS=-std=c11 -Wall -Wextra -Werror -o0
-LDFLAGS=-lm
+CC?=gcc
+CFLAGS:=-std=c11 -Wall -Wextra -fopenmp $(CFLAGS)
+LDFLAGS:=-lm -fopenmp $(LDFLAGS)
 GL_LDFLAGS=-lGL -lglfw
 
 # Files
