@@ -30,8 +30,8 @@ static void init_expf_lookup_table(const float temp)
 static
 void
 update_rb(grid_color color,
-          const elem * restrict read,
-          elem * restrict write) {
+          const elem * read,
+          elem * write) {
 
 	int initial_side_shift = color == RED ? -1 : 1;
 
@@ -62,21 +62,25 @@ update_rb(grid_color color,
 	}
 }
 
-void
-update(const float temp,
-       elem * restrict grid_r,
-       elem * restrict grid_b) {
-    if (expf_lookup.temp != temp) init_expf_lookup_table(temp);
-	update_rb(RED, grid_b, grid_r);
-	update_rb(BLACK, grid_r, grid_b);
+//void
+//update(const float temp,
+//       elem * restrict grid_r,
+//       elem * restrict grid_b) {
+//    if (expf_lookup.temp != temp) init_expf_lookup_table(temp);
+//	update_rb(RED, grid_b, grid_r);
+//	update_rb(BLACK, grid_r, grid_b);
+//}
+
+void update(const float temp, elem * grid_r, elem * grid_b) {
+    update_cuda(grid_r, grid_b, temp);
 }
 
 static
 int
 calculate_rb(grid_color color,
-             const elem * restrict neigh,
-             const elem * restrict grid,
-             int * restrict M_max) {
+             const elem * neigh,
+             const elem * grid,
+             int * M_max) {
 
 	int E = 0, M = 0;
 	int initial_side_shift = color == RED ? -1 : 1;
@@ -103,9 +107,9 @@ calculate_rb(grid_color color,
 }
 
 double
-calculate(const elem * restrict grid_r,
-          const elem * restrict grid_b,
-          int * restrict M_max) {
+calculate(const elem * grid_r,
+          const elem * grid_b,
+          int * M_max) {
 	int E = 0;
 	E += calculate_rb(RED, grid_b, grid_r, M_max);
 	return - (double) E;

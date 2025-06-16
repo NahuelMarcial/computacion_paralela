@@ -1,22 +1,23 @@
-CC?=gcc
-CFLAGS:=-std=c11 -Wall -Wextra -fopenmp $(CFLAGS)
-LDFLAGS:=-lm -fopenmp $(LDFLAGS)
-GL_LDFLAGS=-lGL -lglfw
+# Compiladores
+NVCC ?= nvcc
 
-# Files
-TARGETS=tiny_ising demo
+# Flags
+NVCCFLAGS := -O3 -Xcompiler -fopenmp -std=c++11
+LDFLAGS := -lm
+GL_LDFLAGS := -lGL -lglfw
 
-# Rules
-all: clean $(TARGETS)
+# Archivos
+TARGETS = tiny_ising_cuda demo_cuda
 
-tiny_ising: tiny_ising.o ising.o wtime.o randomizer.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+all: $(TARGETS)
 
-demo: demo.o ising.o wtime.o randomizer.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(GL_LDFLAGS)
+tiny_ising_cuda: tiny_ising.c ising.cpp ising_cuda.cu wtime.c randomizer.c
+	$(NVCC) $(NVCCFLAGS) -o $@ $^ $(LDFLAGS)
+
+demo_cuda: demo.c ising.cpp ising_cuda.cu wtime.c randomizer.c
+	$(NVCC) $(NVCCFLAGS) -o $@ $^ $(LDFLAGS) $(GL_LDFLAGS)
 
 clean:
 	rm -f $(TARGETS) *.o
 
 .PHONY: clean all
-

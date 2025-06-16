@@ -1,5 +1,9 @@
-#include<inttypes.h>
+#include <inttypes.h>
 #include "params.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define RAND_MAX_ALT 0xFFFFFFFF
 
@@ -13,3 +17,7 @@ extern union rand_num rand_state[MAX_THREADS];
 void srand_alt(uint64_t s);
 uint32_t rand_alt(void);
 void rand_alt_64x4(int tid);
+
+#ifdef __cplusplus
+}
+#endif
