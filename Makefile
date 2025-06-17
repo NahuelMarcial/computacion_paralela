@@ -2,7 +2,7 @@
 NVCC ?= nvcc
 
 # Flags
-NVCCFLAGS := -O3 -Xcompiler -fopenmp -std=c++11
+NVCCFLAGS := -O3 -arch=sm_61 -Xcompiler -fopenmp -std=c++11
 LDFLAGS := -lm
 GL_LDFLAGS := -lGL -lglfw
 
