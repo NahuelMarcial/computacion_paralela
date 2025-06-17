@@ -144,25 +144,23 @@ int main(void)
     // clear the grid
     init(grid_r, grid_b);
 
-    // temperature increasing cycle
-    cycle(grid_r, grid_b, TEMP_INITIAL, TEMP_FINAL, TEMP_DELTA, DELTA_T, stat);
+    // Reservar arrays para resultados GPU
+    double temps[NPOINTS], energies[NPOINTS], mags[NPOINTS];
+
+    // ciclo de temperaturas y medición en GPU
+    cycle_cuda_with_stats(grid_r, grid_b, TEMP_INITIAL, TEMP_FINAL, TEMP_DELTA, TRAN, TMAX, temps, energies, mags, NPOINTS);
 
     // stop timer
     double elapsed = wtime() - start;
     printf("# Total Simulation Time (sec): %lf\n", elapsed);
 
-    printf("# Temp\tE\tE^2\tE^4\tM\tM^2\tM^4\n");
+    // Imprimir resultados
+    printf("# Temp\tE\tM\n");
     for (unsigned int i = 0; i < NPOINTS; ++i) {
-        printf("%lf\t%.10lf\t%.10lf\t%.10lf\t%.10lf\t%.10lf\t%.10lf\n",
-               stat[i].t,
-               stat[i].e / ((double)N),
-               stat[i].e2 / ((double)N * N),
-               stat[i].e4 / ((double)N * N * N * N),
-               stat[i].m,
-               stat[i].m2,
-               stat[i].m4);
+        printf("%lf\t%.10lf\t%.10lf\n", temps[i], energies[i] / ((double)N), mags[i]);
     }
-	free(grid_r);
-	free(grid_b);
+
+    free(grid_r);
+    free(grid_b);
     return 0;
 }
